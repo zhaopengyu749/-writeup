@@ -1,0 +1,37 @@
+mindmap
+  root((Web 漏洞视角))
+    PHP框架
+      典型代表
+        Laravel
+        ThinkPHP
+        Symfony
+        CodeIgniter
+      典型漏洞
+        反序列化
+        路由/控制器RCE
+        SQL注入/认证绕过
+    CMS
+      典型代表
+        WordPress
+        Drupal
+        Joomla
+        DedeCMS
+      典型漏洞
+        插件/模板漏洞
+        上传/文件包含
+        后台提权
+    模板引擎SSTI
+      典型代表
+        Jinja2
+        Twig
+        Freemarker
+        Velocity
+      典型漏洞
+        模板注入RCE
+        沙箱逃逸
+        信息泄露
+    关系
+      框架 ∩ CMS = 底座+上层应用
+      框架 ∩ 模板引擎 = 内置/集成模板
+      CMS ∩ 模板引擎 = 主题/渲染层
+      任意组合 = 复杂攻击面
