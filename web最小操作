@@ -1,0 +1,15 @@
+按下面这个顺序，基本不会遗漏：
+
+curl -I http://target
+看 X-Powered-By、Set-Cookie、Server 等指纹。
+访问常见特征路径
+/readme.html、/license.txt、/wp-login.php、/admin、/CHANGELOG.txt 等。
+whatweb target
+一次性输出 CMS/框架/中间件信息。
+在参数里测试 SSTI
+{{7*7}}、${7*7}、#{7*7} 等看是否被计算。
+根据识别结果选择思路
+WordPress → 查版本 + 插件漏洞 + 上传/文件包含
+Laravel/ThinkPHP → 查框架漏洞 + 反序列化 + SSTI
+只看出模板引擎 → 按 SSTI 思路走
+什么都看不出 → 按“通用 Web 应用”做目录爆破/参数 fuzz
